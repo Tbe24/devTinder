@@ -12,7 +12,7 @@ try {
   res.send("User created successfully");
 } catch (err) {
   console.error(err);
-  res.status(500).send("An error occurred while creating the user");
+  res.status(500).send("An error occurred while creating the user" + err);
 }
 });
 //get user by emailId
@@ -49,16 +49,51 @@ app.delete('/user', async (req, res) => {
   }
 });
 //update user by userId using patch method
-app.patch('/user', async (req, res) => {
-  const userId = req.body.userId;
-  const data= req.body;
+app.patch("/user/:userId", async (req, res) => {
+  const userId = req.params?.userId; // Extract user ID from the request body
+  const data = req.body; // Payload containing fields to update
+
   try {
-    const users = await User.findByIdAndUpdate({_id:userId}, data,{runValidators:true});
+    // List of fields that can be updated
+    const allowedUpdates = [
+      "firstName",
+      "lastName",
+      "password",
+      "age",
+      "skills",
+      "about",
+      "photoUrl",
+    ];
+
+    // Check if all keys in data are allowed updates
+    const isValidUpdate = Object.keys(data).every((update) =>
+      allowedUpdates.includes(update)
+    );
+
+    if (!isValidUpdate) {
+      throw new Error("Invalid updates");
+    }
+    if(data.skills.length>10){
+      throw new Error("skills should not be more than 10");
+    }
+    // Find user by ID and update
+    const user = await User.findByIdAndUpdate(userId, data, {
+      runValidators: true,
+      new: true, // Return the updated document
+    });
+
+    // Handle case when user is not found
+    if (!user) {
+      return res.status(404).send("User not found");
+    } 
+
     res.send("User updated successfully");
-  }catch (err) {
-    res.status(400).send("something went wrong " + err.message )
+  } catch (err) {
+    res.status(400).send("Something went wrong: " + err.message);
+    console.log(err.message); // Log the error for debugging
   }
 });
+
 connectDB()
 .then(() => {
   console.log("Connected to MongoDB");
