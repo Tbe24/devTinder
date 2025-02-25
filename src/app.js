@@ -3,16 +3,48 @@ const port = 7777;
 const app = express();
 const connectDB = require('./config/database');
 const User = require('./models/user');
+const { validateSignUpData } = require('./utils/validation');
+const bcrypt = require('bcrypt');
 
 app.use(express.json());
+//signup api to create user
 app.post('/signup', async (req, res) => {
-const user = new User(req.body);
-try {
+  try {
+    //validate entered credentials
+    validateSignUpData(req);
+
+  const { firstName, lastName, emailId, password } = req.body;
+
+    //encrypt password
+    const Passwordhashed = await bcrypt.hash(password, 10);
+
+  const user = new User({firstName,
+    lastName,
+    emailId,
+    password:Passwordhashed
+  });
   await user.save();
   res.send("User created successfully");
 } catch (err) {
-  console.error(err);
-  res.status(500).send("An error occurred while creating the user" + err);
+  res.status(500).send("Error :" + err.message);
+}
+});
+//login api to authenticate user
+app.post('/login', async (req, res) => {
+  try {
+    const { emailId, password } = req.body;
+    const user = await User.findOne({emailId:emailId})
+    if (!user) {
+      throw new Error("invalid credential");
+    }
+      const isPasswordValid = await bcrypt.compare(password,user.password)
+      if(isPasswordValid){
+        res.send("login succesfull")
+      }else{
+        throw new Error("invalid credential");
+      }
+  }catch (err) {
+  res.status(500).send("Error :" + err.message);
 }
 });
 //get user by emailId
