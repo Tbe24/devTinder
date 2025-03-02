@@ -1,83 +1,20 @@
 const express = require('express');
-const port = 7777;
 const app = express();
+const port = 7777;
 const connectDB = require('./config/database');
 const User = require('./models/user');
-const { validateSignUpData } = require('./utils/validation');
-const bcrypt = require('bcrypt');
-const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
-const userAuth = require("./middlewares/auth");
+const authRouter = require("./routes/auth");
+const requestRouter = require("./routes/request");
+const profileRouter = require("./routes/profile");
 
 app.use(express.json());
 app.use(cookieParser());
-//signup api to create user
-app.post('/signup', async (req, res) => {
-  try {
-    //validate entered credentials
-    validateSignUpData(req);
 
-  const { firstName, lastName, emailId, password } = req.body;
+app.use("/", authRouter);
+app.use("/", profileRouter);
+app.use("/", requestRouter);
 
-    //encrypt password
-    const Passwordhashed = await bcrypt.hash(password, 10);
-
-  const user = new User({
-    firstName,
-    lastName,
-    emailId,
-    password:Passwordhashed
-  });
-  await user.save();
-  res.send("User created successfully");
-} catch (err) {
-  res.status(500).send("Error :" + err.message);
-}
-});
-//login api to authenticate user
-app.post('/login', async (req, res) => {
-  try {
-    const { emailId, password } = req.body;
-    const user = await User.findOne({emailId:emailId})
-    if (!user) {
-      throw new Error("invalid credential");
-    }
-      const isPasswordValid = await user.validatePassword(password);
-      if(isPasswordValid){
-      const token = await user.getJWT();
-      //add the token to cookie and send it to the client
-      res.cookie("token", token, {
-        expires: new Date(Date.now() + 900000),
-        httpOnly: true,
-      });
-        res.send("login succesfull")
-      }else{
-        throw new Error("invalid credential");
-      }
-      
-  }catch (err) {
-  res.status(500).send("Error :" + err.message);
-}
-});
-//get profile of user 
-app.get("/profile", userAuth, async (req, res) => {
-  try {
-    const user = req.user;
-    res.send(user);
-  } catch (error) {
-    res.status(400).send("ERROR :" + error.message);
-  }
-}); 
-//sendConnectionRequest api 
-app.post("/sendConnectionRequest", userAuth, async (req, res) => {
-  try {
-    const user = req.user;
-    console.log("sending conection request");
-    res.send(user.firstName + "Connection request sent successfully");
-  } catch (error) {
-    res.status(400).send("ERROR :" + error.message);
-  }
-});
 
 //get user by emailId
 app.get('/user', async (req, res) => {
